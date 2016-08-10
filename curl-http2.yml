@@ -1,0 +1,8 @@
+---
+- name: install curl with HTTP2
+  hosts: curl-http2
+  become: yes
+  become_user: ubuntu
+  roles:
+    - curl-http2
+

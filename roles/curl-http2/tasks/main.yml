@@ -1,0 +1,100 @@
+---
+- name: install dependencies
+  apt: 
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "git"
+    - "g++"
+    - "make"
+    - "binutils"
+    - "autoconf"
+    - "automake"
+    - "autotools-dev"
+    - "libtool"
+    - "pkg-config"
+    - "zlib1g-dev"
+    - "libcunit1-dev"
+    - "libssl-dev"
+    - "libxml2-dev"
+    - "libev-dev"
+    - "libevent-dev"
+    - "libjansson-dev"
+    - "libjemalloc-dev"
+    - "cython"
+    - "python3-dev"
+    - "python-setuptools"
+  become: true
+  become_user: root
+
+- name: Make /home/ubuntu/opt
+  file:
+    path: /home/ubuntu/opt
+    state: directory
+
+- name: clone nghttp2
+  git:
+    repo: "https://github.com/tatsuhiro-t/nghttp2.git"
+    dest: /home/ubuntu/opt/nghttp2
+    update: no
+
+- name: configure nghttp2
+  shell: autoreconf -i && automake && autoconf && ./configure
+  args:
+    chdir: /home/ubuntu/opt/nghttp2
+    creates: aclocal.m4
+
+- name: make nghttp2
+  shell: make
+  args:
+    chdir: /home/ubuntu/opt/nghttp2
+
+- name: install nghttp2
+  shell: make install
+  args:
+    chdir: /home/ubuntu/opt/nghttp2
+  become: true
+  become_user: root
+
+- name: build curl dependencies
+  apt:
+    name: curl
+    state: build-dep
+  become: true
+  become_user: root
+
+- name: download curl 7.46.0
+  get_url:
+    url: http://curl.haxx.se/download/curl-7.46.0.tar.bz2
+    dest: /home/ubuntu/opt/curl-7.46.0.tar.bz2
+    validate_certs: no
+
+- name: untar curl bundle
+  shell: tar xjvf curl-7.46.0.tar.bz2
+  args:
+    chdir: /home/ubuntu/opt
+    creates: curl-7.46.0
+
+- name: configure curl
+  shell: /home/ubuntu/opt/curl-7.46.0/configure --with-nghttp2=/usr/local --with-ssl
+  become: true
+  become_user: root
+
+- name: make curl
+  shell: make
+  args:
+    chdir: /home/ubuntu/opt/curl-7.46.0
+
+- name: install curl
+  shell: make install
+  args:
+    chdir: /home/ubuntu/opt/curl-7.46.0
+  become: true
+  become_user: root
+
+- name: make curl-http2 alias
+  lineinfile:
+    dest: /home/ubuntu/.bash_aliases
+    state: present
+    create: yes
+    line: alias curl-http2='LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/curl --http2'
